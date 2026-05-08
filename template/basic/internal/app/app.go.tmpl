@@ -1,0 +1,80 @@
+package app
+
+import (
+	"context"
+	"database/sql"
+	"log/slog"
+
+	baseapp "github.com/kdays/chobits/app"
+	"github.com/kdays/chobits/cache"
+	"github.com/kdays/chobits/database"
+	"github.com/kdays/chobits/di"
+	"github.com/kdays/chobits/kdaysuc"
+	"github.com/kdays/chobits/storage"
+	"github.com/kdays/chobits/token"
+
+	"{{MODULE}}/internal/config"
+)
+
+type App struct {
+	Components *di.Container
+}
+
+func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*App, error) {
+	components := di.New()
+	di.MustRegister[*config.Config](components, cfg)
+	di.MustRegister[*slog.Logger](components, logger)
+
+	dbs, err := database.OpenManager(ctx, cfg.Database)
+	if err != nil {
+		return nil, err
+	}
+	di.MustRegister[*database.Manager](components, dbs)
+	di.MustRegisterNoLifecycle[*sql.DB](components, dbs.Default())
+
+	var cacheStore cache.Cache = cache.NewMemory()
+	cacheCfg, err := cfg.Cache.Store("")
+	if err != nil {
+		_ = dbs.Close()
+		return nil, err
+	}
+	primaryCache, err := cache.Open(ctx, cacheCfg, cache.WithDatabaseResolver(func(name string) (cache.DatabaseHandle, error) {
+		db, err := dbs.DB(name)
+		if err != nil {
+			return cache.DatabaseHandle{}, err
+		}
+		driver, err := cfg.Database.DriverName(name)
+		if err != nil {
+			return cache.DatabaseHandle{}, err
+		}
+		return cache.DatabaseHandle{DB: db, Driver: driver}, nil
+	}))
+	if err != nil {
+		if cacheCfg.IsRequired() {
+			_ = dbs.Close()
+			return nil, err
+		}
+		logger.Warn("cache unavailable; using memory cache", slog.Any("error", err))
+	} else {
+		cacheStore = cache.NewFallback(primaryCache, cacheStore)
+	}
+	di.MustRegister[cache.Cache](components, cacheStore)
+
+	storageManager := storage.NewManager(cfg.Storage)
+	tokenService := token.New(cacheStore, token.WithPrefix(cfg.Token.Prefix), token.WithTTL(cfg.Token.TTL()))
+	di.MustRegister[*storage.Manager](components, storageManager)
+	di.MustRegister[*token.Service](components, tokenService)
+	if cfg.KDaysUC.APIHost != "" {
+		di.MustRegister[*kdaysuc.Client](components, kdaysuc.New(cfg.KDaysUC))
+	}
+
+	return &App{Components: components}, nil
+}
+
+func (app *App) Backgrounds() []any {
+	return app.Components.Backgrounds()
+}
+
+func (app *App) Closers() []baseapp.Closer {
+	return app.Components.Closers()
+}

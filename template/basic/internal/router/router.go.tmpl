@@ -1,0 +1,23 @@
+package router
+
+import (
+	"log/slog"
+	"net/http"
+
+	"github.com/kdays/chobits/di"
+	"github.com/kdays/chobits/response"
+
+	"{{MODULE}}/internal/config"
+)
+
+func New(components *di.Container) http.Handler {
+	cfg := di.MustResolve[*config.Config](components)
+	logger := di.MustResolve[*slog.Logger](components)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		logger.Debug("health check", slog.String("app", cfg.App.Name))
+		response.OK(w, map[string]string{"status": "ok"})
+	})
+	return mux
+}

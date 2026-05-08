@@ -1,0 +1,73 @@
+app:
+  name: {{APP_NAME}}
+  env: dev
+  debug: true
+  data_dir: ./data
+
+server:
+  addr: ":8080"
+  read_header_timeout_seconds: 5
+  shutdown_timeout_seconds: 10
+
+database:
+  default: default
+  connections:
+    default:
+      driver: mysql
+      mysql:
+        dsn: ""
+        host: 127.0.0.1
+        port: 3306
+        user: root
+        password: ""
+        database: {{APP_NAME}}
+    local:
+      driver: sqlite
+      sqlite:
+        path: ./data/{{APP_NAME}}.db
+
+cache:
+  default_store: default
+  stores:
+    default:
+      driver: redis
+      redis:
+        addr: 127.0.0.1:6379
+        db: 0
+        prefix: "{{APP_NAME}}"
+        required: false
+    local:
+      driver: memory
+    database:
+      driver: database
+      database:
+        connection: default
+        table: chobits_cache
+        auto_migrate: true
+
+log:
+  level: info
+  format: text
+
+token:
+  prefix: "{{APP_NAME}}_"
+  ttl_seconds: 432000
+
+storage:
+  default_disk: attachment
+  max_upload_size: 2097152
+  disks:
+    attachment:
+      backend: local
+      root_dir: ./data/uploads/attachment
+      public_base_url: /uploads/attachment/
+    external_avatar:
+      backend: external
+      public_base_url: https://avatar.example.test/
+
+kdays_uc:
+  api_host: ""
+  public_host: ""
+  api_key: ""
+  secret: ""
+  app_id: ""

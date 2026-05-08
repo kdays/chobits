@@ -1,0 +1,78 @@
+app:
+  name: chobits-example
+  env: dev
+  debug: true
+  data_dir: ./data
+
+server:
+  addr: ":8080"
+  read_header_timeout_seconds: 5
+  shutdown_timeout_seconds: 10
+  allowed_origins:
+    - "localhost:3000"
+
+database:
+  default: default
+  connections:
+    default:
+      driver: mysql # mysql | sqlite
+      mysql:
+        dsn: ""
+        host: 127.0.0.1
+        port: 3306
+        user: root
+        password: ""
+        database: app
+        charset: utf8mb4
+        max_open_conns: 25
+        max_idle_conns: 10
+        conn_max_lifetime_seconds: 300
+    local:
+      driver: sqlite
+      sqlite:
+        path: ./data/app.db
+        max_open_conns: 1
+        max_idle_conns: 1
+        conn_max_lifetime_seconds: 300
+
+redis:
+  addr: 127.0.0.1:6379
+  username: ""
+  password: ""
+  db: 0
+  prefix: "app"
+  required: false
+
+log:
+  level: info
+  format: text
+
+token:
+  prefix: "app_"
+  ttl_seconds: 432000
+
+storage:
+  default_disk: attachment
+  max_upload_size: 2097152
+  disks:
+    attachment:
+      backend: local
+      root_dir: ./data/uploads/attachment
+      public_base_url: /uploads/attachment/
+    avatar:
+      backend: local
+      root_dir: ./data/uploads/avatar
+      public_base_url: /uploads/avatar/
+    external_avatar:
+      backend: external
+      public_base_url: https://avatar.example.test/
+
+kdays_uc:
+  api_host: ""
+  public_host: ""
+  api_key: ""
+  secret: ""
+  app_id: ""
+  timeout_seconds: 10
+
+features: {}

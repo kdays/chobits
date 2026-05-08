@@ -1,0 +1,86 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"path/filepath"
+	"strings"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/kdays/chobits/app"
+	"github.com/kdays/chobits/cli"
+	baseconfig "github.com/kdays/chobits/config"
+	"github.com/kdays/chobits/migration"
+
+	internalapp "{{MODULE}}/internal/app"
+	"{{MODULE}}/internal/buildinfo"
+	"{{MODULE}}/internal/config"
+	"{{MODULE}}/internal/router"
+)
+
+func main() {
+	cli.ExecuteOrExit(context.Background(), cli.Options{
+		Name:        "{{APP_NAME}}",
+		Short:       "{{APP_NAME}} service",
+		VersionText: buildinfo.Text,
+		Server:      runServer,
+		Migrate:     newMigrator,
+	})
+}
+
+func runServer(ctx context.Context, c *cli.Context) (*http.Server, app.Options, error) {
+	cfg, logger, err := config.Load(c.ConfigPath)
+	if err != nil {
+		slog.Error("load config", slog.Any("error", err))
+		return nil, app.Options{}, err
+	}
+
+	application, err := internalapp.New(ctx, cfg, logger)
+	if err != nil {
+		logger.Error("init app", slog.Any("error", err))
+		return nil, app.Options{}, err
+	}
+
+	handler := router.New(application.Components)
+	server := &http.Server{
+		Addr:              cfg.Server.Addr,
+		Handler:           handler,
+		ReadHeaderTimeout: cfg.Server.ReadHeaderTimeout(),
+	}
+	return server, app.Options{
+		Logger:          logger,
+		ShutdownTimeout: cfg.Server.ShutdownTimeout(),
+		Backgrounds:     application.Backgrounds(),
+		Closers:         application.Closers(),
+	}, nil
+}
+
+func newMigrator(_ context.Context, c *cli.Context) (*migrate.Migrate, error) {
+	cfg, _, err := config.Load(c.ConfigPath)
+	if err != nil {
+		return nil, err
+	}
+
+	connection, ok := cfg.Database.Connections[cfg.Database.Default]
+	if !ok {
+		return nil, fmt.Errorf("database connection %q not found", cfg.Database.Default)
+	}
+	driver := strings.ToLower(strings.TrimSpace(connection.Driver))
+	var dsn string
+	switch driver {
+	case "", "mysql":
+		dsn, err = connection.MySQL.DSNString()
+	case "sqlite", "sqlite3":
+		dsn, err = connection.SQLite.DSNString()
+	default:
+		err = fmt.Errorf("unsupported database driver %q", connection.Driver)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	migrationsDir := baseconfig.ResolvePath(filepath.Dir(c.ConfigPath), "migrations")
+	return migration.NewFile(driver, dsn, migrationsDir)
+}

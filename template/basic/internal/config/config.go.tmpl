@@ -1,0 +1,37 @@
+package config
+
+import (
+	"log/slog"
+	"os"
+	"path/filepath"
+
+	baseconfig "github.com/kdays/chobits/config"
+	"github.com/kdays/chobits/logger"
+)
+
+type Config struct {
+	baseconfig.Common `yaml:",inline"`
+}
+
+func Load(path string) (*Config, *slog.Logger, error) {
+	var cfg Config
+	used, err := baseconfig.LoadYAML(path, &cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	baseDir := "."
+	if used != "" {
+		baseDir = filepath.Dir(used)
+	}
+	cfg.App.DataDir = baseconfig.ResolvePath(baseDir, cfg.App.DataDir)
+
+	log, err := logger.New(os.Stderr, logger.Options{
+		Level:  cfg.Log.Level,
+		Format: cfg.Log.Format,
+		Env:    cfg.App.Env,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return &cfg, log, nil
+}

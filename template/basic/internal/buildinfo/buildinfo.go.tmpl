@@ -1,0 +1,16 @@
+package buildinfo
+
+import basebuildinfo "github.com/kdays/chobits/buildinfo"
+
+var (
+	Version   = "dev"
+	Commit    = "unknown"
+	BuildTime = ""
+)
+
+func Text() string {
+	basebuildinfo.Version = Version
+	basebuildinfo.Commit = Commit
+	basebuildinfo.BuildTime = BuildTime
+	return basebuildinfo.Text()
+}
