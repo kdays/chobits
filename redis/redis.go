@@ -5,10 +5,9 @@ import (
 
 	"github.com/kdays/chobits/cache"
 	"github.com/kdays/chobits/config"
-	goredis "github.com/redis/go-redis/v9"
 )
 
-func Open(ctx context.Context, cfg config.Redis) (*goredis.Client, error) {
+func Open(ctx context.Context, cfg config.Redis) (cache.RedisClient, error) {
 	return cache.OpenRedisClient(ctx, cache.RedisConfig{
 		Addr:     cfg.Addr,
 		Username: cfg.Username,

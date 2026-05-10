@@ -15,3 +15,8 @@ The generated app uses the Chobits DI container. Register application services i
 
 The CLI is backed by cobra. Add project-specific debug or admin commands through
 `cli.Options.Commands` or `cli.Options.Configure`.
+
+Chobits keeps SQLite and UPYUN out of default binaries. Build with `-tags sqlite`
+only if the generated app needs SQLite support, and with `-tags upyun` only if it
+needs the real UPYUN storage backend. Apps using Gin can usually add Gin's
+`nomsgpack` tag to production builds to avoid the msgpack codec.

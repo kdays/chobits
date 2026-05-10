@@ -51,6 +51,38 @@ snake case. For example `database.connections.default.mysql.dsn` maps to
 `CHOBITS_DATABASE_CONNECTIONS_DEFAULT_MYSQL_DSN`. Projects can use their own
 prefix with `config.WithEnvPrefix("NEXT")`.
 
+## Build Tags
+
+Chobits keeps optional heavy integrations out of default application binaries.
+The default build supports MySQL, memory/database cache, the lightweight Redis
+client, local storage, and external URL storage.
+
+Use build tags only when the app needs the optional backend:
+
+```sh
+go test ./...
+go test -tags sqlite ./...
+go test -tags upyun ./...
+go test -tags "sqlite upyun" ./...
+```
+
+- `sqlite`: enables SQLite openers, gorm SQLite support, and the migrate SQLite
+  driver. Without it, SQLite entry points return an unsupported error.
+- `upyun`: enables real UPYUN object storage. Without it, UPYUN URL generation
+  still works, but read/write operations return `storage.ErrUnsupported`.
+
+Apps using Gin can usually add Gin's `nomsgpack` tag to production builds to
+avoid pulling in the msgpack codec:
+
+```sh
+go build -tags nomsgpack ./cmd/server
+```
+
+When compiling an app against local Chobits changes, add a module `replace` such
+as `replace github.com/kdays/chobits => ../../chobits`, or create a temporary
+`go.work` containing both modules. Otherwise Go may build against the published
+Chobits version instead of this checkout.
+
 ## Migration Direction
 
 1. New projects start from `template/basic`.

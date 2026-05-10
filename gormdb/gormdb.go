@@ -11,7 +11,6 @@ import (
 	"github.com/kdays/chobits/config"
 	"github.com/kdays/chobits/database"
 	gormmysql "gorm.io/driver/mysql"
-	gormsqlite "gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -100,16 +99,7 @@ func OpenMySQL(ctx context.Context, cfg config.MySQL, opts ...Option) (*gorm.DB,
 }
 
 func OpenSQLite(ctx context.Context, cfg config.SQLite, opts ...Option) (*gorm.DB, error) {
-	sqlDB, err := database.OpenSQLite(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	db, err := OpenSQL("sqlite", sqlDB, opts...)
-	if err != nil {
-		_ = sqlDB.Close()
-		return nil, err
-	}
-	return db, nil
+	return openSQLite(ctx, cfg, opts...)
 }
 
 func OpenSQL(driver string, sqlDB *sql.DB, opts ...Option) (*gorm.DB, error) {
@@ -122,7 +112,11 @@ func OpenSQL(driver string, sqlDB *sql.DB, opts ...Option) (*gorm.DB, error) {
 	case "", "mysql":
 		dialector = gormmysql.New(gormmysql.Config{Conn: sqlDB})
 	case "sqlite":
-		dialector = gormsqlite.New(gormsqlite.Config{Conn: sqlDB})
+		var err error
+		dialector, err = sqliteDialector(sqlDB)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unsupported gorm database driver %q", driver)
 	}

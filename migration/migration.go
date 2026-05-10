@@ -7,7 +7,6 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/mysql"
-	_ "github.com/golang-migrate/migrate/v4/database/sqlite"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	iofsdriver "github.com/golang-migrate/migrate/v4/source/iofs"
 )
@@ -18,7 +17,7 @@ func NewFile(driver string, dsn string, migrationsDir string) (*migrate.Migrate,
 	case "", "mysql":
 		return newMySQL(sourceURL, dsn)
 	case "sqlite", "sqlite3":
-		return newSQLite(sourceURL, dsn)
+		return NewSQLiteFile(dsn, migrationsDir)
 	default:
 		return nil, fmt.Errorf("unsupported migration database driver %q", driver)
 	}
@@ -42,15 +41,6 @@ func NewMySQLFile(dsn string, migrationsDir string) (*migrate.Migrate, error) {
 
 func NewMySQLEmbed(dsn string, files fs.FS, dir string) (*migrate.Migrate, error) {
 	return newEmbed(files, dir, mysqlURL(dsn))
-}
-
-func NewSQLiteFile(dsn string, migrationsDir string) (*migrate.Migrate, error) {
-	sourceURL := "file://" + migrationsDir
-	return newSQLite(sourceURL, dsn)
-}
-
-func NewSQLiteEmbed(dsn string, files fs.FS, dir string) (*migrate.Migrate, error) {
-	return newEmbed(files, dir, SQLiteURL(dsn))
 }
 
 func Up(m *migrate.Migrate) error {
@@ -86,14 +76,6 @@ func newMySQL(sourceURL string, dsn string) (*migrate.Migrate, error) {
 	return m, nil
 }
 
-func newSQLite(sourceURL string, dsn string) (*migrate.Migrate, error) {
-	m, err := migrate.New(sourceURL, SQLiteURL(dsn))
-	if err != nil {
-		return nil, fmt.Errorf("create migrate instance: %w", err)
-	}
-	return m, nil
-}
-
 func newEmbed(files fs.FS, dir string, databaseURL string) (*migrate.Migrate, error) {
 	sourceDriver, err := iofsdriver.New(files, dir)
 	if err != nil {
@@ -111,11 +93,4 @@ func mysqlURL(dsn string) string {
 		return dsn
 	}
 	return "mysql://" + dsn
-}
-
-func SQLiteURL(dsn string) string {
-	if strings.HasPrefix(dsn, "sqlite://") {
-		return dsn
-	}
-	return "sqlite://" + dsn
 }

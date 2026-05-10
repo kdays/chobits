@@ -1,3 +1,5 @@
+//go:build upyun
+
 package storage
 
 import (
